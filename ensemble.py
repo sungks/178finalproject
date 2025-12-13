@@ -202,14 +202,31 @@ X_tr_l1 = get_level1_predictions(modelK, modelsP, modelT, X_tr)
 #X_tr_l1 = np.hstack([kPred, pPred])
 X_va_l1 = get_level1_predictions(modelK, modelsP, modelT, X_va)
 print('fitting ensemble')
+
+
 ensemble = {}
+# ensemble models separated per label to allow for easier
+# displaying of results
 for l in labels:
     model = LogisticRegression(class_weight="balanced", C=1.0, max_iter=2000, n_jobs=-1)
+    
+    # Other models that were tested:
+    #
+    #model = MLPClassifier(hidden_layer_sizes=(64, ), activation='relu', solver='sgd', learning_rate_init=0.001, batch_size=256, learning_rate='constant', random_state=seed)
+    #model = MLPClassifier(hidden_layer_sizes=(64, ), activation='relu', solver='adam', learning_rate_init=0.001, learning_rate='invscaling', batch_size=256, random_state=seed)
+    
     model.fit(X_tr_l1, y_tr[l])
     ensemble[l] = model
+
 #print(f'training error: {1 - ensemble.score(X_tr_l1, y_tr)}')
 #print(f'validation error: {1 - ensemble.score(X_va_l1, y_va)}')
 
+
+
+#
+# Displaying errors for each label
+#
+#
 
 
 for current_label in labels:
@@ -219,3 +236,34 @@ for current_label in labels:
         val_error = 1 - ensemble[current_label].score(X_va_l1, y_va[current_label])
         print(f'validation error: {val_error}')
         print()
+
+
+
+
+#
+# To display the graphs
+#
+#
+from sklearn.metrics import precision_recall_curve, average_precision_score
+import matplotlib.pyplot as plt
+
+labels = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
+
+plt.figure(figsize=(8, 6))
+
+for i, label in enumerate(labels):
+    # model[label] is your per-label classifier
+    y_scores = ensemble[label].predict_proba(X_va_l1)[:, 1]
+    y_true_label = y_val[label]
+
+    precision, recall, _ = precision_recall_curve(y_true_label, y_scores)
+    ap = average_precision_score(y_true_label, y_scores)
+
+    plt.plot(recall, precision, label=f"{label} (AP={ap:.2f})")
+
+plt.xlabel("Recall")
+plt.ylabel("Precision")
+plt.title("Precision–Recall Curves for All 6 Labels")
+plt.legend()
+plt.grid(True)
+plt.show()
